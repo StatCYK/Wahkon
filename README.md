@@ -20,7 +20,7 @@ Wahkon unifies [Kolmogorov's superposition theorem](https://en.wikipedia.org/wik
 ### Install from source
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/wahkon.git
+git clone https://github.com/StatCYK/Wahkon.git
 cd wahkon
 pip install -e .
 ```
