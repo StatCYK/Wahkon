@@ -87,5 +87,4 @@ wahkon/
 │       └── layer.py        # WKNLayer (single network layer)
 └── examples/
     └── demo.py             # Quick-start demo script
-    └── demo_colab.ipynb             # Quick-start colab-version demo script
 ```
