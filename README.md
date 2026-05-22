@@ -10,6 +10,10 @@ Wahkon unifies [Kolmogorov's superposition theorem](https://en.wikipedia.org/wik
 - **Profile Objective** — Analytically concentrates last-layer coefficients for faster, stabler optimization.
 - **Minimax-Optimal Rates** — Convergence guarantees via metric-entropy bounds under mild smoothness assumptions.
 
+## Quick start: running wahkon on colab
+
+demo notebook [demo_colab.ipynb](https://colab.research.google.com/drive/1L7jnFtuM1XiZL6-BJIiLFCbv6TP8voZr?usp=sharing) 
+
 ## Installation
 
 ### Requirements
@@ -51,46 +55,6 @@ pip install torch --index-url https://download.pytorch.org/whl/cu121
 
 Then install Wahkon as above. Pass `device='cuda'` when creating datasets and training.
 
-## Quick Start
-
-```python
-import torch
-from wahkon import ProfileWKN, create_dataset
-
-# 1. Define a target function
-f_noisy = lambda x: (
-    torch.exp(torch.sin(torch.pi * x[:, [0]]) + x[:, [1]] ** 2)
-    + 0.5 * torch.randn(x.shape[0], 1)
-)
-f_true = lambda x: torch.exp(torch.sin(torch.pi * x[:, [0]]) + x[:, [1]] ** 2)
-
-# 2. Create dataset
-dataset = create_dataset(
-    f_noisy, f_true=f_true, n_var=2,
-    train_num=500, test_num=200, seed=42,
-)
-
-# 3. Build and train
-model = ProfileWKN(width=[2, 5, 1], grid=9, sigma=0.5, device='cpu')
-results, _, _ = model.train(
-    dataset, opt='Adam', steps=300, lr=0.005,
-    lamb_last=0.01, lamb_lower=0.01,
-    batch=200, update_grid=False, device='cpu',
-)
-
-# 4. Refit last layer on full training data
-model.fit_last_layer(
-    dataset['train_input'], dataset['train_label'],
-    lamb_last=0.01, device='cpu',
-)
-
-# 5. Predict
-with torch.no_grad():
-    y_hat = model.predict(
-        dataset['train_input'], dataset['test_input'], device='cpu',
-    )
-```
-
 ## Running the Demo
 
 ```bash
@@ -100,36 +64,12 @@ python examples/demo.py
 # Custom settings
 python examples/demo.py --expname exp3 --n_train 400 --seed 0
 
-# Skip Bayesian optimization (use default lambdas, runs much faster)
-python examples/demo.py --skip_bo
-
 # Use GPU
 python examples/demo.py --device cuda
 ```
 
 The demo trains a ProfileWKN model, evaluates point prediction RMSE, and saves a summary plot to `./results/`.
 
-## Hyperparameter Selection
-
-Wahkon uses a two-stage lambda selection strategy:
-
-1. **Lower-layer penalty** (`lamb_lower`): Controls smoothness of learned feature embeddings. **Fixed** by the deterministic formula `n^{-4/5} × #links`, where `#links = Σ D_{l-1} × D_l`. This is computed internally and not tuned.
-2. **Last-layer penalty** (`lamb_last`): Controls bias-variance tradeoff in the final regression. Selected via 1D Bayesian optimization over K-fold cross-validation RMSE.
-
-```python
-from wahkon import select_lambda_twostage
-
-# lamb_lower is fixed internally; BO searches lamb_last only
-best_lamb_last, fixed_lamb_lower = select_lambda_twostage(
-    width=[2, 5, 1], dataset=dataset,
-    n_splits=5, steps=300, lr=0.005,
-    grid=9, sigma=0.5,
-    n_calls=15, n_random_init=5,
-    lamb_last_range=(0.01, 3.0),
-    batch=200,
-    device='cpu',
-)
-```
 
 ## Package Structure
 
@@ -147,21 +87,5 @@ wahkon/
 │       └── layer.py        # WKNLayer (single network layer)
 └── examples/
     └── demo.py             # Quick-start demo script
+    └── demo_colab.ipynb             # Quick-start colab-version demo script
 ```
-
-## Citation
-
-If you use Wahkon in your research, please cite:
-
-```bibtex
-@article{wahkon2026,
-  title   = {Wahkon: A Statistically Principled Deep RKHS Superposition Network},
-  author  = {Chen, Yongkai and others},
-  journal = {Proceedings of STAIX 2026},
-  year    = {2026}
-}
-```
-
-## License
-
-MIT License. See [LICENSE](LICENSE) for details.
