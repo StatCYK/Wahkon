@@ -9,9 +9,9 @@ experiments (Figures and Tables) in the paper.
 
 ## Environment Setup
 
-Three separate environments are needed because the KAN baseline (official
-pykan) and the NTK baseline (neural-tangents / JAX) have conflicting
-dependencies.
+Three separate environments are recommended to avoid conflicting
+dependencies between the KAN baseline (official
+pykan), the NTK baseline (neural-tangents / JAX) and wahkon.
 
 ### 1. Wahkon environment (main)
 
