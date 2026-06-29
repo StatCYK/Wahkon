@@ -11,7 +11,7 @@ experiments (Figures and Tables) in the paper.
 
 Three separate environments are recommended to avoid conflicting
 dependencies between the KAN baseline (official
-pykan), the NTK baseline (neural-tangents / JAX) and wahkon.
+pykan), the NTK baseline (neural-tangents / JAX), and wahkon.
 
 ### 1. Wahkon environment (main)
 
