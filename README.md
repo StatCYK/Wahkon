@@ -172,7 +172,7 @@ Output: `figure/width_4_overlaid_qq_plots.png` and
 `figure/width_4_prior_md_hist.png`.
 
 
-## HPC / SLURM Usage
+## HPC Usage
 
 For cluster runs, all three runner scripts support parallel execution
 and crash-safe resume. If a run is interrupted, re-run the same command
