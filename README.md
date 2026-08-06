@@ -1,6 +1,6 @@
 # Wahkon: A Statistically Principled Deep RKHS Superposition Network
 
-Code accompanying the STAIX 2026 paper
+Code accompanying the First Conference on Statistics and Trustworthy AI for Cross (X)-Domain paper
 *"[Wahkon: A Statistically Principled Deep RKHS Superposition Network.](https://openreview.net/pdf?id=pbHIU8XWtM)"*
 
 This repository contains all scripts needed to reproduce the simulation
