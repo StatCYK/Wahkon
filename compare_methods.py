@@ -370,14 +370,25 @@ def _run_wahkon_core(exp_cfg, dataset, n_train, seed, device,
     best_lamb_last = float(X_obs[best_idx, 0])
     bo_time = time.time() - t0
 
-    # -- Final model: train on full dataset with best lamb_last --
     t1 = time.time()
     model = ProfileWKN(
         width=width, grid=GRID, sigma=SIGMA,
         seed=seed, device=device, **model_kwargs,
     )
+
+    _perm = np.random.RandomState(seed).permutation(n_train)
+    _n_val = max(1, int(n_train * 0.2))
+    _val_idx = _perm[:_n_val]
+    _tr_idx = _perm[_n_val:]
+    es_dataset = {
+        'train_input': dataset['train_input'][_tr_idx],
+        'train_label': dataset['train_label'][_tr_idx],
+        'test_input':  dataset['train_input'][_val_idx],
+        'test_label':  dataset['train_label'][_val_idx],
+        'test_true':   dataset['train_label'][_val_idx],
+    }
     results, _, _ = model.train(
-        dataset, opt='Adam', steps=STEPS, lr=LR,
+        es_dataset, opt='Adam', steps=STEPS, lr=LR,
         lamb_last=best_lamb_last, lamb_lower=fixed_lamb_lower,
         batch=BATCH, update_grid=False,
         verbose=False, device=device,
@@ -518,20 +529,28 @@ def run_mlp(exp_cfg, dataset, n_train, seed, device):
     model = _MLP(n_var, hidden, 1).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=LR)
 
-    x_train = dataset['train_input'].to(device)
-    y_train = dataset['train_label'].to(device).view(-1, 1)
+    x_train_full = dataset['train_input'].to(device)
+    y_train_full = dataset['train_label'].to(device).view(-1, 1)
     x_test = dataset['test_input'].to(device)
     y_test = dataset['test_label'].to(device).view(-1, 1)
 
+    perm = np.random.RandomState(seed).permutation(n_train)
+    n_val = max(1, int(n_train * 0.2))
+    val_idx = perm[:n_val]
+    tr_idx = perm[n_val:]
+    x_train, y_train = x_train_full[tr_idx], y_train_full[tr_idx]
+    x_val, y_val = x_train_full[val_idx], y_train_full[val_idx]
+    n_tr = len(tr_idx)
+
     t0 = time.time()
-    batch_sz = min(BATCH, n_train)
+    batch_sz = min(BATCH, n_tr)
     patience = 50
-    best_test_loss = float('inf')
+    best_val_loss = float('inf')
     best_state = None
     steps_no_improve = 0
 
     for step in range(STEPS):
-        idx = np.random.choice(n_train, batch_sz, replace=False)
+        idx = np.random.choice(n_tr, batch_sz, replace=False)
         xb, yb = x_train[idx], y_train[idx]
         pred = model(xb)
         loss = torch.mean((pred - yb) ** 2)
@@ -539,13 +558,13 @@ def run_mlp(exp_cfg, dataset, n_train, seed, device):
         loss.backward()
         optimizer.step()
 
-        # Check test loss every 10 steps
+        # Check validation loss every 10 steps
         if (step + 1) % 10 == 0:
             with torch.no_grad():
-                test_pred = model(x_test)
-                test_loss = float(torch.mean((test_pred - y_test) ** 2))
-            if test_loss < best_test_loss:
-                best_test_loss = test_loss
+                val_pred = model(x_val)
+                val_loss = float(torch.mean((val_pred - y_val) ** 2))
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
                 best_state = {k: v.clone() for k, v in model.state_dict().items()}
                 steps_no_improve = 0
             else:
@@ -588,20 +607,28 @@ def run_mlp_deep(exp_cfg, dataset, n_train, seed, device):
     model = _MLP(n_var, hidden, 1).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=LR)
 
-    x_train = dataset['train_input'].to(device)
-    y_train = dataset['train_label'].to(device).view(-1, 1)
+    x_train_full = dataset['train_input'].to(device)
+    y_train_full = dataset['train_label'].to(device).view(-1, 1)
     x_test = dataset['test_input'].to(device)
     y_test = dataset['test_label'].to(device).view(-1, 1)
 
+    perm = np.random.RandomState(seed).permutation(n_train)
+    n_val = max(1, int(n_train * 0.2))
+    val_idx = perm[:n_val]
+    tr_idx = perm[n_val:]
+    x_train, y_train = x_train_full[tr_idx], y_train_full[tr_idx]
+    x_val, y_val = x_train_full[val_idx], y_train_full[val_idx]
+    n_tr = len(tr_idx)
+
     t0 = time.time()
-    batch_sz = min(BATCH, n_train)
+    batch_sz = min(BATCH, n_tr)
     patience = 50
-    best_test_loss = float('inf')
+    best_val_loss = float('inf')
     best_state = None
     steps_no_improve = 0
 
     for step in range(STEPS):
-        idx = np.random.choice(n_train, batch_sz, replace=False)
+        idx = np.random.choice(n_tr, batch_sz, replace=False)
         xb, yb = x_train[idx], y_train[idx]
         pred = model(xb)
         loss = torch.mean((pred - yb) ** 2)
@@ -609,13 +636,13 @@ def run_mlp_deep(exp_cfg, dataset, n_train, seed, device):
         loss.backward()
         optimizer.step()
 
-        # Check test loss every 10 steps
+        # Check validation loss every 10 steps
         if (step + 1) % 10 == 0:
             with torch.no_grad():
-                test_pred = model(x_test)
-                test_loss = float(torch.mean((test_pred - y_test) ** 2))
-            if test_loss < best_test_loss:
-                best_test_loss = test_loss
+                val_pred = model(x_val)
+                val_loss = float(torch.mean((val_pred - y_val) ** 2))
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
                 best_state = {k: v.clone() for k, v in model.state_dict().items()}
                 steps_no_improve = 0
             else:
@@ -752,28 +779,36 @@ def run_bnn(exp_cfg, dataset, n_train, seed, device,
     model = _BNN_BBB(n_var, hidden, 1, prior_sigma=prior_sigma).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=LR)
 
-    x_train = dataset['train_input'].to(device)
-    y_train = dataset['train_label'].to(device).view(-1, 1)
+    x_train_full = dataset['train_input'].to(device)
+    y_train_full = dataset['train_label'].to(device).view(-1, 1)
     x_test = dataset['test_input'].to(device)
     y_test = dataset['test_label'].to(device).view(-1, 1)
 
+    perm = np.random.RandomState(seed).permutation(n_train)
+    n_val = max(1, int(n_train * 0.2))
+    val_idx = perm[:n_val]
+    tr_idx = perm[n_val:]
+    x_train, y_train = x_train_full[tr_idx], y_train_full[tr_idx]
+    x_val, y_val = x_train_full[val_idx], y_train_full[val_idx]
+    n_tr = len(tr_idx)
+
     # Train with ELBO + early stopping
     t0 = time.time()
-    batch_sz = min(BATCH, n_train)
+    batch_sz = min(BATCH, n_tr)
     patience = 50
-    best_test_loss = float('inf')
+    best_val_loss = float('inf')
     best_state = None
     steps_no_improve = 0
 
     for step in range(STEPS):
         model.train()
-        idx = np.random.choice(n_train, batch_sz, replace=False)
+        idx = np.random.choice(n_tr, batch_sz, replace=False)
         xb, yb = x_train[idx], y_train[idx]
         pred = model(xb)
 
-        # ELBO: data fit (scaled to full dataset) + KL (scaled by 1/n)
-        nll = (n_train / batch_sz) * torch.mean((pred - yb) ** 2)
-        kl = model.kl_divergence() / n_train
+        # ELBO: data fit (scaled to training set) + KL (scaled by 1/n_tr)
+        nll = (n_tr / batch_sz) * torch.mean((pred - yb) ** 2)
+        kl = model.kl_divergence() / n_tr
         loss = nll + kl
 
         optimizer.zero_grad()
@@ -784,10 +819,10 @@ def run_bnn(exp_cfg, dataset, n_train, seed, device,
             # Evaluate with mean weights (no sampling) for early stopping
             model.eval()
             with torch.no_grad():
-                test_pred = model(x_test)
-                test_loss = float(torch.mean((test_pred - y_test) ** 2))
-            if test_loss < best_test_loss:
-                best_test_loss = test_loss
+                val_pred = model(x_val)
+                val_loss = float(torch.mean((val_pred - y_val) ** 2))
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
                 best_state = {k: v.clone()
                               for k, v in model.state_dict().items()}
                 steps_no_improve = 0
@@ -826,7 +861,7 @@ def run_bnn(exp_cfg, dataset, n_train, seed, device,
     with torch.no_grad():
         f_train = model(x_train).view(-1)
     resid = y_train.view(-1) - f_train
-    sigma2 = float(torch.sum(resid ** 2) / max(n_train - 1, 1))
+    sigma2 = float(torch.sum(resid ** 2) / max(n_tr - 1, 1))
 
     # Predictive CI: Var(y*) = Var_MC(f*) + sigma^2
     pred_std_y = torch.sqrt(pred_std ** 2 + sigma2)
